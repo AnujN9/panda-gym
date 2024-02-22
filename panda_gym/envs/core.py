@@ -190,9 +190,12 @@ class Task(ABC):
         """Returns whether the achieved goal match the desired goal."""
 
     @abstractmethod
-    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
+    def computed_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
         """Compute reward associated to the achieved and the desired goal."""
 
+    @abstractmethod
+    def is_truncated(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, obj_vel: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
+        """Returns whether the simualtion step should end."""
 
 class RobotTaskEnv(gym.Env):
     """Robotic task goal env, as the junction of a task and a robot.
@@ -242,7 +245,7 @@ class RobotTaskEnv(gym.Env):
             )
         )
         self.action_space = self.robot.action_space
-        self.compute_reward = self.task.compute_reward
+        self.compute_reward = self.task.computed_reward
         self._saved_goal = dict()  # For state saving and restoring
 
         self.render_width = render_width
@@ -317,11 +320,11 @@ class RobotTaskEnv(gym.Env):
         self.robot.set_action(action)
         self.sim.step()
         observation = self._get_obs()
-        # An episode is terminated iff the agent has reached the target
+        # An episode is terminated if the agent has reached the target
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
-        truncated = False
-        info = {"is_success": terminated}
-        reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info))
+        truncated = bool(self.task.is_truncated(observation["achieved_goal"], self.task.get_goal(), observation["observation"]))
+        info = {"is_success": terminated, "is_truncated": truncated}
+        reward = float(self.task.computed_reward(observation["achieved_goal"], self.task.get_goal(), info))
         return observation, reward, terminated, truncated, info
 
     def close(self) -> None:

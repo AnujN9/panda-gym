@@ -9,4 +9,11 @@ env = gym.make("PandaPush-v3")
 
 model = DDPG(policy="MultiInputPolicy", env=env, replay_buffer_class=HerReplayBuffer, verbose=1)
 
-model.learn(total_timesteps=100000)
+model.learn(total_timesteps=1000)
+
+vec_env = model.get_env()
+obs = vec_env.reset()
+for i in range(1000):
+    action, _states = model.predict(obs, deterministic=True)
+    obs, rewards, dones, info = vec_env.step(action)
+    vec_env.render("human")
