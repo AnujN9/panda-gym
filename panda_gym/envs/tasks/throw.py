@@ -19,10 +19,8 @@ class Throw(Task):
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
         self.object_size = 0.025
-        self.goal_range_low = np.array([0, -goal_xy_range / 2, 0])
-        self.goal_range_high = np.array([0, goal_xy_range / 2, 0])
-        # self.goal_range_low = np.array([-goal_xy_range / 2, 0, 0])
-        # self.goal_range_high = np.array([goal_xy_range / 2, 0, 0])
+        self.goal_range_low = np.array([-goal_xy_range / 2, -goal_xy_range / 2, 0])
+        self.goal_range_high = np.array([goal_xy_range / 2, goal_xy_range / 2, 0])
         self.fingers_indices = np.array([9, 10])
         self.joint_indices=np.array([0, 1, 2, 3, 4, 5, 6, 9, 10])
         self.ee_link = 11
@@ -69,7 +67,7 @@ class Throw(Task):
 
     def _sample_goal(self) -> np.ndarray:
         """Randomize goal."""
-        goal = np.array([1.0, -0.15, self.object_size / 2])  # z offset for the cube center
+        goal = np.array([1.0, 0.0, self.object_size / 2])  # z offset for the cube center
         noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
         goal += noise
         return goal
@@ -91,14 +89,10 @@ class Throw(Task):
         return np.array(d < self.distance_threshold, dtype=bool)
 
     def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info) -> np.ndarray:
-        # d = distance(achieved_goal, desired_goal)
-        # return -d.astype(np.float32)
         if achieved_goal.shape[0] == 3:
             d = distance(achieved_goal, desired_goal)
             if info["is_success"]:
                 return np.array([100.0])[0]
-            # elif info["is_truncated"]:
-            #     return np.array([-100.0])
             return -d.astype(np.float32)
         elif achieved_goal.shape[1] == 3:
             d = distance(achieved_goal, desired_goal)

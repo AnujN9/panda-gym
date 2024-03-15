@@ -336,7 +336,6 @@ class RobotTaskEnv(gym.Env):
         truncated = bool(self.task.is_truncated(observation["achieved_goal"], self.task.get_goal(), observation["observation"]))
         # truncated = False
         info = {"is_success": terminated, "is_truncated": truncated}
-        # info = {"is_success": terminated}
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info))
         return observation, reward, terminated, truncated, info
 
