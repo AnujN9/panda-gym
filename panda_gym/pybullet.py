@@ -240,7 +240,7 @@ class PyBullet:
             link (int): Link index in the body.
 
         Returns:
-            np.ndarray: The rotation, as (rx, ry, rz).
+            np.ndarray: The rotation, as (x, y, z, w).
         """
         orientation = self.physics_client.getLinkState(self._bodies_idx[body], link)[1]
         return np.array(orientation)

@@ -12,15 +12,15 @@ class Throw(Task):
         self,
         sim: PyBullet,
         reward_type="sparse",
-        distance_threshold: float = 0.01,
+        distance_threshold: float = 0.05,
         goal_xy_range: float = 0.3,
     ) -> None:
         super().__init__(sim)
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
-        self.object_size = 0.04
-        self.goal_range_low = np.array([-goal_xy_range / 2, -goal_xy_range / 2, 0])
-        self.goal_range_high = np.array([goal_xy_range / 2, goal_xy_range / 2, 0])
+        self.object_size = 0.025
+        self.goal_range_low = np.array([0, -goal_xy_range / 2, 0])
+        self.goal_range_high = np.array([0, goal_xy_range / 2, 0])
         # self.goal_range_low = np.array([-goal_xy_range / 2, 0, 0])
         # self.goal_range_high = np.array([goal_xy_range / 2, 0, 0])
         self.fingers_indices = np.array([9, 10])
@@ -34,7 +34,7 @@ class Throw(Task):
         self.sim.create_box(
             body_name="object",
             half_extents=np.ones(3) * self.object_size / 2,
-            mass=0.5,
+            mass=0.03,
             position=np.array([0.0, 0.0, self.object_size / 2]),
             lateral_friction=1.0,
             rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
@@ -69,7 +69,7 @@ class Throw(Task):
 
     def _sample_goal(self) -> np.ndarray:
         """Randomize goal."""
-        goal = np.array([1.5, 0.0, self.object_size / 2])  # z offset for the cube center
+        goal = np.array([1.0, -0.15, self.object_size / 2])  # z offset for the cube center
         noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
         goal += noise
         return goal
@@ -80,8 +80,9 @@ class Throw(Task):
         joint_angles = np.zeros(7)
         for i in self.joint_indices[:7]:
             joint_angles[i] = self.sim.get_joint_angle("panda",i)
-        joint_f_angles = np.append(joint_angles,[0.021, 0.021])
-        self.sim.control_joints("panda",self.joint_indices,joint_f_angles,np.array([87.0, 87.0, 87.0, 87.0, 12.0, 120.0, 120.0, 170.0, 170.0]))
+        joint_val = 0.041 - self.object_size / 2
+        joint_f_angles = np.append(joint_angles,[joint_val, joint_val])
+        self.sim.control_joints("panda",self.joint_indices,joint_f_angles,np.array([87.0, 87.0, 87.0, 87.0, 12.0, 12.0, 12.0, 17.0, 17.0]))
         object_position = ee_pos
         return object_position
 
@@ -89,20 +90,21 @@ class Throw(Task):
         d = distance(achieved_goal, desired_goal)
         return np.array(d < self.distance_threshold, dtype=bool)
 
-    def computed_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info) -> np.ndarray:
+    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info) -> np.ndarray:
+        # d = distance(achieved_goal, desired_goal)
+        # return -d.astype(np.float32)
         if achieved_goal.shape[0] == 3:
             d = distance(achieved_goal, desired_goal)
-            if d < self.distance_threshold:
-                return np.array([100.0])
+            if info["is_success"]:
+                return np.array([100.0])[0]
+            # elif info["is_truncated"]:
+            #     return np.array([-100.0])
             return -d.astype(np.float32)
         elif achieved_goal.shape[1] == 3:
             d = distance(achieved_goal, desired_goal)
-            for i in range(d.shape[0]):
-                if d[i] < self.distance_threshold:
-                    d[i] = 100.0
             return -d.astype(np.float32)
     
     def is_truncated(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, obj_vel: np.ndarray) -> np.ndarray:
         d = distance(achieved_goal, desired_goal)
-        if np.all(achieved_goal[3:6]<1e-4) and achieved_goal[2] - desired_goal[2] < 1e-3 and d < self.distance_threshold:
+        if np.all(obj_vel[17:20]<1e-4) and achieved_goal[2] - desired_goal[2] < 1e-3:
             return np.array(True)

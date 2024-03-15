@@ -23,7 +23,7 @@ class Panda(PyBulletRobot):
         sim: PyBullet,
         block_gripper: bool = False,
         base_position: Optional[np.ndarray] = None,
-        control_type: str = "ee",
+        control_type: str = "joints",
     ) -> None:
         base_position = base_position if base_position is not None else np.zeros(3)
         self.block_gripper = block_gripper
@@ -38,11 +38,10 @@ class Panda(PyBulletRobot):
             base_position=base_position,
             action_space=action_space,
             joint_indices=np.array([0, 1, 2, 3, 4, 5, 6, 9, 10]),
-            joint_forces=np.array([87.0, 87.0, 87.0, 87.0, 12.0, 120.0, 120.0, 170.0, 170.0]),
+            joint_forces=np.array([87.0, 87.0, 87.0, 87.0, 12.0, 12.0, 12.0, 17.0, 17.0]),
         )
-
         self.fingers_indices = np.array([9, 10])
-        self.neutral_joint_values = np.array([0.00, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79, 0.00, 0.00])
+        self.neutral_joint_values = np.array([0.00, -0.785, 0.00, -2.356, 0.00, 1.571, 0.785, 0.00, 0.00])
         self.ee_link = 11
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[0], lateral_friction=1.0)
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[1], lateral_friction=1.0)
@@ -109,13 +108,14 @@ class Panda(PyBulletRobot):
     def get_obs(self) -> np.ndarray:
         # end-effector position and velocity
         ee_position = np.array(self.get_ee_position())
+        ee_orientation = np.array(self.get_ee_orientation())
         ee_velocity = np.array(self.get_ee_velocity())
         # fingers opening
         if not self.block_gripper:
             fingers_width = self.get_fingers_width()
-            observation = np.concatenate((ee_position, ee_velocity, [fingers_width]))
+            observation = np.concatenate((ee_position, ee_orientation, ee_velocity, [fingers_width]))
         else:
-            observation = np.concatenate((ee_position, ee_velocity))
+            observation = np.concatenate((ee_position, ee_orientation, ee_velocity))
         return observation
 
     def reset(self) -> None:
@@ -138,3 +138,7 @@ class Panda(PyBulletRobot):
     def get_ee_velocity(self) -> np.ndarray:
         """Returns the velocity of the end-effector as (vx, vy, vz)"""
         return self.get_link_velocity(self.ee_link)
+    
+    def get_ee_orientation(self) -> np.ndarray:
+        """Returns the position of the end-effector as (x, y, z, w)"""
+        return self.get_link_orientation(self.ee_link)
